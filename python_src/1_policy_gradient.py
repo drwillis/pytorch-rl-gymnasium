@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[44]:
+# In[67]:
 
 
 import torch
@@ -17,7 +17,7 @@ import gymnasium
 import tqdm
 
 
-# In[45]:
+# In[68]:
 
 
 # ----------------------------
@@ -37,7 +37,7 @@ def get_device():
     return device
 
 
-# In[46]:
+# In[69]:
 
 
 # ----------------------------
@@ -54,7 +54,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[47]:
+# In[70]:
 
 
 class MLP(nn.Module):
@@ -70,7 +70,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[48]:
+# In[71]:
 
 
 def init_weights(m):
@@ -80,7 +80,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[49]:
+# In[72]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -109,7 +109,7 @@ def train_episode(env, policy, optimizer, gamma, device):
     return loss, sum(rewards)
 
 
-# In[50]:
+# In[73]:
 
 
 # ----------------------------
@@ -128,7 +128,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[51]:
+# In[74]:
 
 
 def update_policy(returns, log_prob_actions, optimizer):
@@ -141,7 +141,7 @@ def update_policy(returns, log_prob_actions, optimizer):
     return loss.item()
 
 
-# In[52]:
+# In[75]:
 
 
 def evaluate(env, policy, device):
@@ -164,7 +164,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[53]:
+# In[76]:
 
 
 # ----------------------------
@@ -178,8 +178,8 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
-# device = torch.device("cpu")
+device_ = get_device()
+# device_ = torch.device("cpu")
 
 input_dim = train_env.observation_space.shape[0]
 hidden_dim = 32
@@ -187,24 +187,24 @@ output_dim = train_env.action_space.n
 
 n_runs = 5
 max_episodes = 300
-gamma = 0.99
+gamma_ = 0.99
 
 train_rewards = torch.zeros(n_runs, max_episodes)
 test_rewards = torch.zeros(n_runs, max_episodes)
 
 for run in range(n_runs):
-    policy = MLP(input_dim, hidden_dim, output_dim).to(device)
-    policy.apply(init_weights)
-    optimizer = optim.Adam(policy.parameters(), lr=1e-2)
+    policy_ = MLP(input_dim, hidden_dim, output_dim).to(device_)
+    policy_.apply(init_weights)
+    optimizer_ = optim.Adam(policy_.parameters(), lr=1e-2)
 
     for episode in tqdm.tqdm(range(max_episodes), desc=f"Run {run+1}/{n_runs}"):
-        loss, tr = train_episode(train_env, policy, optimizer, gamma, device)
-        te = evaluate(test_env, policy, device)
+        loss, tr = train_episode(train_env, policy_, optimizer_, gamma_, device_)
+        te = evaluate(test_env, policy_, device_)
         train_rewards[run, episode] = tr
         test_rewards[run, episode] = te
 
 
-# In[54]:
+# In[77]:
 
 
 # Plot results

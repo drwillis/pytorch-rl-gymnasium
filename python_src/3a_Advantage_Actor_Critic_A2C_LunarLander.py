@@ -180,7 +180,7 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     """Compute loss and update policy and value parameters."""    
     policy_loss = -(advantages * log_prob_actions).mean()    
     value_loss = F.smooth_l1_loss(values, returns, reduction='mean')
-    loss = policy_loss + 1.5 * value_loss;
+    loss = policy_loss + 0.5 * value_loss;
     optimizer.zero_grad()
     loss.backward()
     # policy_loss.backward()

@@ -5,7 +5,7 @@
 # 
 # https://towardsdatascience.com/an-intuitive-explanation-of-policy-gradient-part-1-reinforce-aa4392cbfd3c
 
-# In[12]:
+# In[1]:
 
 
 import torch
@@ -20,7 +20,7 @@ import random
 import gymnasium
 
 
-# In[13]:
+# In[2]:
 
 
 # ----------------------------
@@ -40,7 +40,7 @@ def get_device():
     return device
 
 
-# In[14]:
+# In[3]:
 
 
 def set_seed(seed):
@@ -54,7 +54,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False # Disables benchmarking for deterministic behavior
 
 
-# In[15]:
+# In[4]:
 
 
 class MLP(nn.Module):
@@ -72,7 +72,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[16]:
+# In[5]:
 
 
 def init_weights(m):
@@ -82,7 +82,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[17]:
+# In[6]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -111,7 +111,7 @@ def train_episode(env, policy, optimizer, gamma, device):
     return loss, sum(rewards)
 
 
-# In[18]:
+# In[7]:
 
 
 # ----------------------------
@@ -130,7 +130,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[19]:
+# In[8]:
 
 
 def update_policy(returns, log_prob_actions, optimizer):
@@ -142,7 +142,7 @@ def update_policy(returns, log_prob_actions, optimizer):
     return loss.item()
 
 
-# In[20]:
+# In[9]:
 
 
 def evaluate(env, policy, device):
@@ -151,7 +151,6 @@ def evaluate(env, policy, device):
     done = False
     total_reward = 0
     state, _ = env.reset()
-
     while not done:
         state_tensor = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         with torch.no_grad():
@@ -165,7 +164,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[21]:
+# In[10]:
 
 
 # ----------------------------
@@ -179,7 +178,7 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
+device_ = get_device()
 
 INPUT_DIM = train_env.observation_space.shape[0]
 HIDDEN_DIM = 128
@@ -191,18 +190,18 @@ N_TRIALS = 25
 REWARD_THRESHOLD = 475
 PRINT_EVERY = 10
 
-policy = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM).to(device)
-policy.apply(init_weights)
+policy_ = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM).to(device_)
+policy_.apply(init_weights)
 
 LEARNING_RATE = 0.001
-optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
+optimizer_ = optim.Adam(policy_.parameters(), lr = LEARNING_RATE)
 
 train_rewards = []
 test_rewards = []
 
 for episode in range(1, max_episodes+1):
-    loss, train_reward = train_episode(train_env, policy, optimizer, DISCOUNT_FACTOR, device)
-    test_reward = evaluate(test_env, policy, device)
+    loss, train_reward = train_episode(train_env, policy_, optimizer_, DISCOUNT_FACTOR, device_)
+    test_reward = evaluate(test_env, policy_, device_)
 
     train_rewards.append(train_reward)
     test_rewards.append(test_reward)
@@ -220,7 +219,7 @@ for episode in range(1, max_episodes+1):
 print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
 
-# In[22]:
+# In[11]:
 
 
 plt.figure(figsize=(12,8))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[85]:
+# In[83]:
 
 
 import torch
@@ -16,7 +16,7 @@ import random
 import gymnasium
 
 
-# In[86]:
+# In[84]:
 
 
 # ----------------------------
@@ -36,7 +36,7 @@ def get_device():
     return device
 
 
-# In[87]:
+# In[85]:
 
 
 # ----------------------------
@@ -53,7 +53,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[88]:
+# In[86]:
 
 
 class MLP(nn.Module):
@@ -71,7 +71,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[89]:
+# In[87]:
 
 
 class ActorCritic(nn.Module):
@@ -81,14 +81,12 @@ class ActorCritic(nn.Module):
         self.critic = critic
 
     def forward(self, state):
-
         action_pred = self.actor(state)
         value_pred = self.critic(state)
-
         return action_pred, value_pred
 
 
-# In[90]:
+# In[88]:
 
 
 def init_weights(m):
@@ -97,7 +95,7 @@ def init_weights(m):
         m.bias.data.fill_(0)
 
 
-# In[91]:
+# In[89]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -123,12 +121,12 @@ def train_episode(env, policy, optimizer, gamma, device):
 
     log_prob_actions = torch.cat(log_prob_actions)
     values = torch.cat(values).squeeze(-1)        
-    returns = calculate_returns(rewards, gamma, device, False)
+    returns = calculate_returns(rewards, gamma, device, True)
     policy_loss, value_loss = update_policy(returns, log_prob_actions, values, optimizer)
     return policy_loss, value_loss, sum(rewards)
 
 
-# In[92]:
+# In[90]:
 
 
 # ----------------------------
@@ -147,7 +145,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[93]:
+# In[91]:
 
 
 def update_policy(returns, log_prob_actions, values, optimizer):
@@ -155,14 +153,14 @@ def update_policy(returns, log_prob_actions, values, optimizer):
     # returns = returns.detach()    
     policy_loss = -(returns * log_prob_actions).sum()
     value_loss = F.smooth_l1_loss(values, returns)
-    loss = policy_loss + value_loss
+    loss = policy_loss + 0.5 * value_loss
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
     return policy_loss.item(), value_loss.item()
 
 
-# In[94]:
+# In[92]:
 
 
 def evaluate(env, policy, device):
@@ -185,7 +183,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[95]:
+# In[93]:
 
 
 # ----------------------------
@@ -199,7 +197,7 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
+device_ = get_device()
 
 INPUT_DIM = train_env.observation_space.shape[0]
 HIDDEN_DIM = 128
@@ -208,11 +206,11 @@ OUTPUT_DIM = train_env.action_space.n
 actor = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM)
 critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
 
-policy = ActorCritic(actor, critic).to(device)
-policy.apply(init_weights)
+policy_ = ActorCritic(actor, critic).to(device_)
+policy_.apply(init_weights)
 
 LEARNING_RATE = 0.01
-optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
+optimizer_ = optim.Adam(policy_.parameters(), lr = LEARNING_RATE)
 
 MAX_EPISODES = 500
 DISCOUNT_FACTOR = 0.99
@@ -224,8 +222,8 @@ train_rewards = []
 test_rewards = []
 
 for episode in range(1, MAX_EPISODES+1):
-    policy_loss, critic_loss, train_reward = train_episode(train_env, policy, optimizer, DISCOUNT_FACTOR, device)
-    test_reward = evaluate(test_env, policy, device)
+    policy_loss, critic_loss, train_reward = train_episode(train_env, policy_, optimizer_, DISCOUNT_FACTOR, device_)
+    test_reward = evaluate(test_env, policy_, device_)
 
     train_rewards.append(train_reward)
     test_rewards.append(test_reward)
@@ -242,7 +240,7 @@ for episode in range(1, MAX_EPISODES+1):
 print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
 
-# In[96]:
+# In[94]:
 
 
 plt.figure(figsize=(12,8))

@@ -11,7 +11,7 @@
 # https://github.com/Kaixhin/Dist-A3C
 # https://github.com/Kaixhin/Dist-A3C/blob/master/client.py
 
-# In[17]:
+# In[1]:
 
 
 import torch
@@ -22,34 +22,53 @@ import torch.distributions as distributions
 
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 import gymnasium as gym
 
 
-# In[18]:
+# In[2]:
 
 
-train_env = gym.make('CartPole-v1')
-test_env = gym.make('CartPole-v1')
+# ----------------------------
+# Device setup
+# ----------------------------
+def get_device():
+    """Select available device (CUDA, MPS for Apple, or CPU)."""
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():  # macOS Metal
+        device = torch.device("mps")
+    elif torch.version.hip is not None and torch.cuda.is_available():
+        device = torch.device("cuda")  # AMD ROCm usually appears as CUDA device
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
+    return device
 
 
-# In[19]:
+# In[3]:
 
 
-# SEED = 1234
+# ----------------------------
+# Seeding for reproducibility
+# ----------------------------
+def set_seed(seed):
+    """Sets seed for reproducibility across libraries and devices."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
-# train_env.seed(SEED);
-# test_env.seed(SEED+1);
-# np.random.seed(SEED);
-# torch.manual_seed(SEED);
 
-
-# In[20]:
+# In[4]:
 
 
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, dropout = 0.5):
         super().__init__()
-
         self.fc_1 = nn.Linear(input_dim, hidden_dim)
         self.fc_2 = nn.Linear(hidden_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
@@ -62,38 +81,22 @@ class MLP(nn.Module):
         return x
 
 
-# In[21]:
+# In[5]:
 
 
 class ActorCritic(nn.Module):
     def __init__(self, actor, critic):
         super().__init__()
-
         self.actor = actor
         self.critic = critic
 
     def forward(self, state):
-
         action_pred = self.actor(state)
         value_pred = self.critic(state)
-
         return action_pred, value_pred
 
 
-# In[22]:
-
-
-INPUT_DIM = train_env.observation_space.shape[0]
-HIDDEN_DIM = 128
-OUTPUT_DIM = train_env.action_space.n
-
-actor = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM)
-critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
-
-policy = ActorCritic(actor, critic)
-
-
-# In[23]:
+# In[6]:
 
 
 def init_weights(m):
@@ -102,99 +105,66 @@ def init_weights(m):
         m.bias.data.fill_(0)
 
 
-# In[24]:
+# In[7]:
 
 
-policy.apply(init_weights)
-
-
-# In[25]:
-
-
-LEARNING_RATE = 0.01
-
-optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
-
-
-# In[26]:
-
-
-def train(env, policy, optimizer, discount_factor, trace_decay):
-
+def train_episode(env, policy, optimizer, gamma, trace_decay, device):
+    """Train policy for one episode."""      
     policy.train()
-
-    log_prob_actions = []
-    values = []
-    rewards = []
+    log_prob_actions, rewards, values = [], [], []
     done = False
-    episode_reward = 0
-
     state, _ = env.reset()
-
     while not done:
-
-        state = torch.FloatTensor(state).unsqueeze(0)
-
+        state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         action_pred, value_pred = policy(state)
-
         action_prob = F.softmax(action_pred, dim = -1)
-
         dist = distributions.Categorical(action_prob)
-
         action = dist.sample()
 
-        log_prob_action = dist.log_prob(action)
+        next_state, reward, done, truncated, _ = env.step(action.item())
+        done = done or truncated
 
-        state, reward, done, _, _ = env.step(action.item())
-
-        log_prob_actions.append(log_prob_action)
-        values.append(value_pred)
+        log_prob_actions.append(dist.log_prob(action))
         rewards.append(reward)
+        values.append(value_pred.squeeze(0))
+        state = next_state
 
-        episode_reward += reward
-
-    log_prob_actions = torch.cat(log_prob_actions)
-    values = torch.cat(values).squeeze(-1)
-
-    returns = calculate_returns(rewards, discount_factor)
-    #note: calculate_advantages takes in rewards, not returns!
-    advantages = calculate_advantages(rewards, values, discount_factor, trace_decay)
-
+    log_prob_actions = torch.stack(log_prob_actions)
+    values = torch.cat(values)
+    returns = calculate_returns(rewards, gamma, device, True)
+    # Note: calculate_advantages takes in rewards, not returns!
+    # advantages = calculate_advantages(returns, values, False)
+    advantages = calculate_advantages(rewards, values, gamma, trace_decay)
     policy_loss, value_loss = update_policy(advantages, log_prob_actions, returns, values, optimizer)
 
-    return policy_loss, value_loss, episode_reward
+    return policy_loss, value_loss, sum(rewards)
 
 
-# In[27]:
+# In[8]:
 
 
-def calculate_returns(rewards, discount_factor, normalize = True):
-
+# ----------------------------
+# Training and evaluation
+# ----------------------------
+def calculate_returns(rewards, gamma, device, normalize=True):
+    """Compute discounted returns for an episode."""
     returns = []
     R = 0
-
     for r in reversed(rewards):
-        R = r + R * discount_factor
+        R = r + gamma * R
         returns.insert(0, R)
-
-    returns = torch.tensor(returns)
-
+    returns = torch.tensor(returns, dtype=torch.float32, device=device)
     if normalize:
-
-        returns = (returns - returns.mean()) / returns.std()
-
+        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
     return returns
 
 
-# In[28]:
+# In[9]:
 
 
 def calculate_advantages(rewards, values, discount_factor, trace_decay, normalize = True):
-
     advantages = []
-    advantage = 0
-    next_value = 0
-
+    advantage, next_value = 0, 0
     for r, v in zip(reversed(rewards), reversed(values)):
         td_error = r + next_value * discount_factor - v
         advantage = td_error + advantage * discount_factor * trace_decay
@@ -204,67 +174,76 @@ def calculate_advantages(rewards, values, discount_factor, trace_decay, normaliz
     # advantages = torch.tensor(advantages)
     advantages = torch.stack(advantages).detach()
     if normalize:
-        advantages = (advantages - advantages.mean()) / advantages.std()
-
+        advantages = (advantages - advantages.mean()) / advantages.std()   
     return advantages
 
 
-# In[29]:
+# In[10]:
 
 
 def update_policy(advantages, log_prob_actions, returns, values, optimizer):
-
-    advantages = advantages.detach()
-    returns = returns.detach()
-
-    policy_loss = - (advantages * log_prob_actions).mean()
-
-    value_loss = F.smooth_l1_loss(values, returns, reduction='mean')
-
+    """Compute loss and update policy and value parameters."""
+    # advantages = advantages.detach()
+    # returns = returns.detach()    
+    policy_loss = -(advantages * log_prob_actions).mean()
+    value_loss = F.smooth_l1_loss(values, returns, reduction='mean')        
+    value_coef = 0.5
+    loss = policy_loss + value_coef * value_loss
     optimizer.zero_grad()
-
-    policy_loss.backward()
-    value_loss.backward()
-
+    loss.backward()    
     optimizer.step()
-
     return policy_loss.item(), value_loss.item()
 
 
-# In[30]:
+# In[11]:
 
 
-def evaluate(env, policy):
-
+def evaluate(env, policy, device):
+    """Evaluate policy (greedy)."""        
     policy.eval()
-
-    rewards = []
     done = False
-    episode_reward = 0
-
+    total_reward = 0
     state, _ = env.reset()
 
     while not done:
-
-        state = torch.FloatTensor(state).unsqueeze(0)
-
+        state_tensor = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         with torch.no_grad():
+            action_logits, _ = policy(state_tensor)
+            action = torch.argmax(F.softmax(action_logits, dim=-1)).item()
+        next_state, reward, done, truncated, _ = env.step(action)
+        done = done or truncated
+        total_reward += reward
+        state = next_state
 
-            action_pred, _ = policy(state)
-
-            action_prob = F.softmax(action_pred, dim = -1)
-
-        action = torch.argmax(action_prob, dim = -1)
-
-        state, reward, done, _, _ = env.step(action.item())
-
-        episode_reward += reward
-
-    return episode_reward
+    return total_reward
 
 
-# In[31]:
+# In[12]:
 
+
+train_env = gym.make('CartPole-v1')
+test_env = gym.make('CartPole-v1')
+
+SEED = 1234
+set_seed(SEED)
+train_env.reset(seed=SEED) # Seed the environment upon reset
+test_env.reset(seed=SEED+1) # Seed the environment upon reset
+
+device_ = get_device()
+# device_ = torch.device("cpu")
+
+INPUT_DIM = train_env.observation_space.shape[0]
+HIDDEN_DIM = 128
+OUTPUT_DIM = train_env.action_space.n
+
+actor = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM)
+critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
+
+policy_ = ActorCritic(actor, critic).to(device_)
+policy_.apply(init_weights)
+
+LEARNING_RATE = 0.01
+optimizer_ = optim.Adam(policy_.parameters(), lr = LEARNING_RATE)
 
 MAX_EPISODES = 500
 DISCOUNT_FACTOR = 0.99
@@ -277,9 +256,8 @@ train_rewards = []
 test_rewards = []
 
 for episode in range(1, MAX_EPISODES+1):
-    policy_loss, value_loss, train_reward = train(train_env, policy, optimizer, DISCOUNT_FACTOR, TRACE_DECAY)
-
-    test_reward = evaluate(test_env, policy)
+    policy_loss, value_loss, train_reward = train_episode(train_env, policy_, optimizer_, DISCOUNT_FACTOR, TRACE_DECAY, device_)   
+    test_reward = evaluate(test_env, policy_, device_)
 
     train_rewards.append(train_reward)
     test_rewards.append(test_reward)
@@ -295,7 +273,7 @@ for episode in range(1, MAX_EPISODES+1):
 print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
 
-# In[ ]:
+# In[13]:
 
 
 plt.figure(figsize=(12,8))

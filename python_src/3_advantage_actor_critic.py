@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[211]:
+# In[16]:
 
 
 import torch
@@ -17,7 +17,7 @@ import gymnasium as gym
 import tqdm
 
 
-# In[212]:
+# In[17]:
 
 
 # ----------------------------
@@ -37,7 +37,7 @@ def get_device():
     return device
 
 
-# In[213]:
+# In[18]:
 
 
 # ----------------------------
@@ -54,7 +54,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[214]:
+# In[19]:
 
 
 class MLP(nn.Module):
@@ -70,7 +70,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[215]:
+# In[20]:
 
 
 class ActorCritic(nn.Module):
@@ -85,7 +85,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[216]:
+# In[21]:
 
 
 def init_weights(m):
@@ -95,7 +95,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[217]:
+# In[22]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -130,7 +130,7 @@ def train_episode(env, policy, optimizer, gamma, device):
     return policy_loss, sum(rewards)
 
 
-# In[218]:
+# In[23]:
 
 
 def train_batch(env, policy, optimizer, gamma, batch_size, device):
@@ -183,7 +183,7 @@ def train_batch(env, policy, optimizer, gamma, batch_size, device):
     return loss, avg_reward
 
 
-# In[219]:
+# In[24]:
 
 
 # ----------------------------
@@ -202,7 +202,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[220]:
+# In[25]:
 
 
 def calculate_advantages(returns, values, normalize = True):
@@ -212,13 +212,13 @@ def calculate_advantages(returns, values, normalize = True):
     return advantages
 
 
-# In[221]:
+# In[26]:
 
 
 def update_policy(advantages, log_prob_actions, returns, values, entropies, optimizer):
     """Compute loss and update policy and value parameters."""    
     policy_loss = -(advantages * log_prob_actions).mean()
-    value_loss = F.smooth_l1_loss(values, returns)
+    value_loss = F.smooth_l1_loss(values, returns, reduction='mean')
     value_coef = 0.5
     entropy_coef = 0.01   
     loss = policy_loss + value_coef * value_loss - entropy_coef * entropies.mean()
@@ -228,7 +228,7 @@ def update_policy(advantages, log_prob_actions, returns, values, entropies, opti
     return loss.item()
 
 
-# In[222]:
+# In[27]:
 
 
 def evaluate(env, policy, device):
@@ -251,7 +251,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[223]:
+# In[28]:
 
 
 # ----------------------------
@@ -265,8 +265,8 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
-# device = torch.device("cpu")
+device_ = get_device()
+# device_ = torch.device("cpu")
 
 input_dim = train_env.observation_space.shape[0]
 hidden_dim = 32
@@ -282,22 +282,21 @@ test_rewards = torch.zeros(n_runs, max_episodes)
 for run in range(n_runs):
     actor = MLP(input_dim, hidden_dim, output_dim)
     critic = MLP(input_dim, hidden_dim, 1)
-    actor_critic = ActorCritic(actor, critic)
-    actor_critic = actor_critic.to(device)
-    actor_critic.apply(init_weights)
-    optimizer = optim.Adam(actor_critic.parameters(), lr=1e-2)
+    actor_critic_ = ActorCritic(actor, critic).to(device_)
+    actor_critic_.apply(init_weights)
+    optimizer_ = optim.Adam(actor_critic_.parameters(), lr=1e-2)
 
     for episode in tqdm.tqdm(range(max_episodes), desc=f'Run: {run}'):
-        loss, train_reward = train_episode(train_env, actor_critic, optimizer, discount_factor, device)
+        loss, train_reward = train_episode(train_env, actor_critic_, optimizer_, discount_factor, device_)
         # batch_size = 30
         # loss, train_reward = train_batch(train_env, actor_critic, optimizer, discount_factor, batch_size, device)
-        test_reward = evaluate(test_env, actor_critic, device)
+        test_reward = evaluate(test_env, actor_critic_, device_)
         # print(f"Iter {episode}: train reward={train_reward:.1f}, test reward={test_reward:.1f}, loss={loss:.3f}")
         train_rewards[run][episode] = train_reward
         test_rewards[run][episode] = test_reward
 
 
-# In[224]:
+# In[29]:
 
 
 idxs = range(max_episodes)
@@ -308,7 +307,7 @@ ax.set_xlabel('Steps')
 ax.set_ylabel('Rewards');
 
 
-# In[225]:
+# In[30]:
 
 
 x = torch.randn(2, 10)

@@ -10,7 +10,7 @@
 # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail/blob/master/a2c_ppo_acktr/algo/a2c_acktr.py
 # https://github.com/higgsfield/RL-Adventure-2
 
-# In[27]:
+# In[39]:
 
 
 import torch
@@ -25,7 +25,7 @@ import random
 import gymnasium as gym
 
 
-# In[28]:
+# In[40]:
 
 
 # ----------------------------
@@ -45,7 +45,7 @@ def get_device():
     return device
 
 
-# In[29]:
+# In[41]:
 
 
 # ----------------------------
@@ -62,7 +62,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[30]:
+# In[42]:
 
 
 class MLP(nn.Module):
@@ -80,7 +80,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[31]:
+# In[43]:
 
 
 class ActorCritic(nn.Module):
@@ -95,7 +95,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[32]:
+# In[44]:
 
 
 def init_weights(m):
@@ -105,7 +105,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[33]:
+# In[45]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -131,17 +131,14 @@ def train_episode(env, policy, optimizer, gamma, device):
 
     log_prob_actions = torch.stack(log_prob_actions)
     values = torch.cat(values).squeeze(-1)
-    returns = calculate_returns(rewards, gamma, device, False)
-    # loss = update_policy(returns, log_prob_actions, optimizer)
-    # log_prob_actions = torch.cat(log_prob_actions)
-    # returns = calculate_returns(rewards, discount_factor)
-    advantages = calculate_advantages(returns, values, False)    
+    returns = calculate_returns(rewards, gamma, device, True)
+    advantages = calculate_advantages(returns, values, True)    
     policy_loss, value_loss = update_policy(advantages, log_prob_actions, returns, values, optimizer)
 
     return policy_loss, value_loss, sum(rewards)
 
 
-# In[34]:
+# In[46]:
 
 
 # ----------------------------
@@ -160,7 +157,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[35]:
+# In[47]:
 
 
 def calculate_advantages(returns, values, normalize = True):
@@ -170,7 +167,7 @@ def calculate_advantages(returns, values, normalize = True):
     return advantages
 
 
-# In[36]:
+# In[48]:
 
 
 def update_policy(advantages, log_prob_actions, returns, values, optimizer): 
@@ -180,23 +177,22 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     policy_loss = -(advantages * log_prob_actions).sum()
     value_loss = F.smooth_l1_loss(values, returns)
     optimizer.zero_grad()
+    value_coef = 1
     if True:
-        value_coef = 1
         entropy_coef = 1
         # Optional entropy regularization for exploration
         loss = policy_loss + value_coef * value_loss - entropy_coef * (-log_prob_actions).mean()
-        loss.backward()
     else:
-        policy_loss.backward()
-        value_loss.backward()
+        loss = policy_loss + value_coef * value_loss
+    loss.backward()
     optimizer.step()
     return policy_loss.item(), value_loss.item()
 
 
-# In[37]:
+# In[49]:
 
 
-def evaluate(env, policy):
+def evaluate(env, policy, device):
     """Evaluate policy (greedy)."""    
     policy.eval()
     done = False
@@ -216,7 +212,7 @@ def evaluate(env, policy):
     return total_reward
 
 
-# In[38]:
+# In[50]:
 
 
 # ----------------------------
@@ -230,21 +226,21 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
-# device = torch.device("cpu")
+device_ = get_device()
+# device_ = torch.device("cpu")
 
 INPUT_DIM = train_env.observation_space.shape[0]
 HIDDEN_DIM = 128
 OUTPUT_DIM = test_env.action_space.n
 
-actor = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM).to(device)
-critic = MLP(INPUT_DIM, HIDDEN_DIM, 1).to(device)
+actor = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM)
+critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
 
-policy = ActorCritic(actor, critic).to(device)
-policy.apply(init_weights)
+policy_ = ActorCritic(actor, critic).to(device_)
+policy_.apply(init_weights)
 
 LEARNING_RATE = 0.01
-optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
+optimizer_ = optim.Adam(policy_.parameters(), lr = LEARNING_RATE)
 
 MAX_EPISODES = 1000
 DISCOUNT_FACTOR = 0.99
@@ -257,9 +253,9 @@ test_rewards = []
 
 for episode in range(1, MAX_EPISODES+1):
 
-    policy_loss, value_loss, train_reward = train_episode(train_env, policy, optimizer, DISCOUNT_FACTOR, device)
+    policy_loss, value_loss, train_reward = train_episode(train_env, policy_, optimizer_, DISCOUNT_FACTOR, device_)
 
-    test_reward = evaluate(test_env, policy)
+    test_reward = evaluate(test_env, policy_, device_)
 
     train_rewards.append(train_reward)
     test_rewards.append(test_reward)
@@ -277,7 +273,7 @@ print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} |
 
 
 
-# In[39]:
+# In[51]:
 
 
 plt.figure(figsize=(12,8))

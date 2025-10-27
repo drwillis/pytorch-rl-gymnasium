@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[10]:
 
 
 import torch
@@ -18,7 +18,7 @@ import gymnasium as gym
 import tqdm
 
 
-# In[2]:
+# In[11]:
 
 
 # ----------------------------
@@ -38,7 +38,7 @@ def get_device():
     return device
 
 
-# In[3]:
+# In[12]:
 
 
 # ----------------------------
@@ -55,7 +55,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[4]:
+# In[13]:
 
 
 class MLP(nn.Module):
@@ -71,7 +71,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[5]:
+# In[14]:
 
 
 def init_weights(m):
@@ -81,7 +81,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[6]:
+# In[15]:
 
 
 def train_episode(env, policy, optimizer, discount_factor, epsilon, device):
@@ -116,7 +116,7 @@ def train_episode(env, policy, optimizer, discount_factor, epsilon, device):
     return loss, episode_reward, epsilon
 
 
-# In[7]:
+# In[16]:
 
 
 def update_policy(policy, state, action, reward, next_state, discount_factor, optimizer):
@@ -126,7 +126,7 @@ def update_policy(policy, state, action, reward, next_state, discount_factor, op
         q_next_preds = policy(next_state)
         q_next_vals = q_next_preds.max(1).values
         targets = reward + q_next_vals * discount_factor
-    loss = F.smooth_l1_loss(targets.detach(), q_vals)
+    loss = F.smooth_l1_loss(q_vals, targets.detach())
     optimizer.zero_grad()
     loss.backward()
     nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
@@ -134,7 +134,7 @@ def update_policy(policy, state, action, reward, next_state, discount_factor, op
     return loss.item()
 
 
-# In[8]:
+# In[17]:
 
 
 def evaluate(env, policy, device):
@@ -159,7 +159,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[9]:
+# In[18]:
 
 
 train_env = gym.make('CartPole-v1')
@@ -170,8 +170,8 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
-# device = torch.device("cpu")
+device_ = get_device()
+# device_ = torch.device("cpu")
 
 input_dim = train_env.observation_space.shape[0]
 hidden_dim = 32
@@ -188,20 +188,20 @@ train_rewards = torch.zeros(n_runs, n_episodes)
 test_rewards = torch.zeros(n_runs, n_episodes)
 
 for run in range(n_runs):
-    policy = MLP(input_dim, hidden_dim, output_dim).to(device)
-    policy.apply(init_weights)
+    policy_ = MLP(input_dim, hidden_dim, output_dim).to(device_)
+    policy_.apply(init_weights)
     epsilon = start_epsilon
-    optimizer = optim.RMSprop(policy.parameters(), lr=1e-6)
+    optimizer_ = optim.RMSprop(policy_.parameters(), lr=1e-6)
     for episode in tqdm.tqdm(range(n_episodes), desc=f'Run: {run}'):
-        loss, train_reward, epsilon = train_episode(train_env, policy, optimizer, discount_factor, epsilon, device)
+        loss, train_reward, epsilon = train_episode(train_env, policy_, optimizer_, discount_factor, epsilon, device_)
         epsilon *= epsilon_decay
         epsilon = min(epsilon, end_epsilon)
-        test_reward = evaluate(test_env, policy, device)
+        test_reward = evaluate(test_env, policy_, device_)
         train_rewards[run][episode] = train_reward
         test_rewards[run][episode] = test_reward
 
 
-# In[10]:
+# In[19]:
 
 
 idxs = range(n_episodes)
@@ -215,7 +215,7 @@ for i, _ax in enumerate(ax):
         _ax.set_xlabel('Episodes')
 
 
-# In[11]:
+# In[20]:
 
 
 idxs = range(n_episodes)
@@ -228,7 +228,7 @@ for i, _ax in enumerate(ax):
         _ax.set_xlabel('Episodes')
 
 
-# In[12]:
+# In[21]:
 
 
 idxs = range(n_episodes)
@@ -241,7 +241,7 @@ for i, _ax in enumerate(ax):
         _ax.set_xlabel('Episodes')
 
 
-# In[13]:
+# In[22]:
 
 
 idxs = range(n_episodes)
@@ -253,7 +253,7 @@ ax.set_xlabel('Episodes')
 ax.set_ylabel('Rewards');
 
 
-# In[14]:
+# In[23]:
 
 
 idxs = range(n_episodes)
@@ -265,7 +265,7 @@ ax.set_xlabel('Episodes')
 ax.set_ylabel('Rewards');
 
 
-# In[15]:
+# In[24]:
 
 
 n = 500
@@ -283,49 +283,49 @@ plt.plot(ys)
 plt.ylim(0,1.1)
 
 
-# In[16]:
+# In[25]:
 
 
 np.e
 
 
-# In[17]:
+# In[26]:
 
 
 q = collections.deque(maxlen=5)
 
 
-# In[18]:
+# In[27]:
 
 
 q
 
 
-# In[19]:
+# In[28]:
 
 
 len(q)
 
 
-# In[20]:
+# In[29]:
 
 
 q.append(1)
 
 
-# In[21]:
+# In[30]:
 
 
 20_000/500
 
 
-# In[22]:
+# In[31]:
 
 
 q.maxlen
 
 
-# In[23]:
+# In[32]:
 
 
 q.append(1)
@@ -334,13 +334,13 @@ q.append(1)
 q.append(1)
 
 
-# In[24]:
+# In[33]:
 
 
 len(q)
 
 
-# In[25]:
+# In[34]:
 
 
 q.append(1)
@@ -349,13 +349,13 @@ q.append(1)
 q.append(1)
 
 
-# In[26]:
+# In[35]:
 
 
 q
 
 
-# In[27]:
+# In[36]:
 
 
 len(q)

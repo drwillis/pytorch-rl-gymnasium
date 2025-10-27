@@ -4,7 +4,7 @@
 # https://medium.com/@jonathan_hui/rl-trust-region-policy-optimization-trpo-explained-a6ee04eeeee9
 # https://stackoverflow.com/a/50663200
 
-# In[406]:
+# In[26]:
 
 
 import torch
@@ -19,7 +19,7 @@ import random
 import gymnasium as gym
 
 
-# In[407]:
+# In[27]:
 
 
 # ----------------------------
@@ -39,7 +39,7 @@ def get_device():
     return device
 
 
-# In[408]:
+# In[28]:
 
 
 # ----------------------------
@@ -56,13 +56,12 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[409]:
+# In[29]:
 
 
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, dropout = 0.5):
         super().__init__()
-
         self.fc_1 = nn.Linear(input_dim, hidden_dim)
         self.fc_2 = nn.Linear(hidden_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
@@ -75,7 +74,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[410]:
+# In[30]:
 
 
 class ActorCritic(nn.Module):
@@ -90,7 +89,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[411]:
+# In[31]:
 
 
 def init_weights(m):
@@ -100,7 +99,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[412]:
+# In[32]:
 
 
 def train_episode(env, policy, optimizer, gamma, ppo_steps, ppo_clip, device):
@@ -125,6 +124,8 @@ def train_episode(env, policy, optimizer, gamma, ppo_steps, ppo_clip, device):
         rewards.append(reward)
         values.append(value_pred.squeeze(0))
         states.append(state_tensor)
+        # policy_loss.backward()
+        # value_loss.backward()
         actions.append(action)
         state = next_state
 
@@ -140,7 +141,7 @@ def train_episode(env, policy, optimizer, gamma, ppo_steps, ppo_clip, device):
     return policy_loss, value_loss, sum(rewards)
 
 
-# In[413]:
+# In[33]:
 
 
 # ----------------------------
@@ -159,7 +160,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[414]:
+# In[34]:
 
 
 def calculate_advantages(returns, values, normalize = True):
@@ -169,7 +170,7 @@ def calculate_advantages(returns, values, normalize = True):
     return advantages
 
 
-# In[415]:
+# In[35]:
 
 
 def update_policy(policy, states, actions, log_prob_actions, advantages, returns, optimizer, ppo_steps, ppo_clip):
@@ -195,14 +196,11 @@ def update_policy(policy, states, actions, log_prob_actions, advantages, returns
         policy_loss_2 = torch.clamp(policy_ratio, min = 1.0 - ppo_clip, max = 1.0 + ppo_clip) * advantages
 
         # policy_loss = - torch.min(policy_loss_1, policy_loss_2).sum()
-        polcy_loss = -torch.min(policy_loss_1, policy_loss_2).mean()
+        policy_loss = -torch.min(policy_loss_1, policy_loss_2).mean()
 
-        value_loss = F.smooth_l1_loss(value_pred, returns)
+        value_loss = F.smooth_l1_loss(value_pred, returns, reduction='mean')
         loss = policy_loss + 0.5 * value_loss
         optimizer.zero_grad()
-
-        # policy_loss.backward()
-        # value_loss.backward()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
         optimizer.step()
@@ -213,7 +211,7 @@ def update_policy(policy, states, actions, log_prob_actions, advantages, returns
     return total_policy_loss / ppo_steps, total_value_loss / ppo_steps
 
 
-# In[416]:
+# In[36]:
 
 
 def evaluate(env, policy, device):
@@ -236,7 +234,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[417]:
+# In[37]:
 
 
 train_env = gym.make('CartPole-v1')
@@ -247,8 +245,8 @@ set_seed(SEED)
 train_env.reset(seed=SEED) # Seed the environment upon reset
 test_env.reset(seed=SEED+1) # Seed the environment upon reset
 
-device = get_device()
-# device = torch.device("cpu")
+device_ = get_device()
+# device_ = torch.device("cpu")
 
 INPUT_DIM = train_env.observation_space.shape[0]
 HIDDEN_DIM = 128
@@ -257,11 +255,11 @@ OUTPUT_DIM = train_env.action_space.n
 actor = MLP(INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM)
 critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
 
-policy = ActorCritic(actor, critic).to(device)
-policy.apply(init_weights)
+policy_ = ActorCritic(actor, critic).to(device_)
+policy_.apply(init_weights)
 
 LEARNING_RATE = 0.01
-optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
+optimizer_ = optim.Adam(policy_.parameters(), lr = LEARNING_RATE)
 
 MAX_EPISODES = 500
 DISCOUNT_FACTOR = 0.99
@@ -274,11 +272,9 @@ PPO_CLIP = 0.2
 train_rewards = []
 test_rewards = []
 
-for episode in range(1, MAX_EPISODES+1):
-
-    policy_loss, value_loss, train_reward = train_episode(train_env, policy, optimizer, DISCOUNT_FACTOR, PPO_STEPS, PPO_CLIP, device)
-
-    test_reward = evaluate(test_env, policy, device)
+for episode in range(1, MAX_EPISODES+1):    
+    policy_loss, value_loss, train_reward = train_episode(train_env, policy_, optimizer_, DISCOUNT_FACTOR, PPO_STEPS, PPO_CLIP, device_)    
+    test_reward = evaluate(test_env, policy_, device_)
 
     train_rewards.append(train_reward)
     test_rewards.append(test_reward)
@@ -295,7 +291,7 @@ for episode in range(1, MAX_EPISODES+1):
 print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
 
-# In[418]:
+# In[38]:
 
 
 plt.figure(figsize=(12,8))
