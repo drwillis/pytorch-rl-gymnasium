@@ -1,0 +1,19 @@
+# On Linux/macOS, install swig if not already present
+# sudo apt-get install swig  # For Debian/Ubuntu
+# brew install swig          # For macOS with Homebrew
+
+# Install box2d-py
+# pip install box2d-py
+# pip install gymnasium[atari]
+# pip install gymnasium[box2d]
+# pip install gymnasium[accept-rom-license]
+# all in one shot
+# pip install gymnasium[atari,box2d,accept-rom-license]
+# pip install ale_py
+# pip install notebook
+# In console run "jupyter notebook" and connect via a browser
+gymnasium==0.29.1
+torch>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+tqdm>=4.67.1
