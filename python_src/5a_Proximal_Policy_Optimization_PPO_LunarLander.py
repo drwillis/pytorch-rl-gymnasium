@@ -234,7 +234,7 @@ def update_policy(policy, states, actions, log_prob_actions, advantages, returns
 
         policy_loss = - torch.min(policy_loss_1, policy_loss_2).mean()
 
-        value_loss = F.smooth_l1_loss(returns, value_pred).mean()
+        value_loss = F.smooth_l1_loss(value_pred, returns).mean()
 
         optimizer.zero_grad()
 

@@ -10,7 +10,7 @@
 # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail/blob/master/a2c_ppo_acktr/algo/a2c_acktr.py
 # https://github.com/higgsfield/RL-Adventure-2
 
-# In[14]:
+# In[27]:
 
 
 import torch
@@ -25,7 +25,7 @@ import random
 import gymnasium as gym
 
 
-# In[15]:
+# In[28]:
 
 
 # ----------------------------
@@ -45,7 +45,7 @@ def get_device():
     return device
 
 
-# In[16]:
+# In[29]:
 
 
 # ----------------------------
@@ -62,7 +62,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[17]:
+# In[30]:
 
 
 class MLP(nn.Module):
@@ -80,7 +80,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[18]:
+# In[31]:
 
 
 class ActorCritic(nn.Module):
@@ -95,7 +95,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[19]:
+# In[32]:
 
 
 def init_weights(m):
@@ -105,7 +105,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[20]:
+# In[33]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -141,7 +141,7 @@ def train_episode(env, policy, optimizer, gamma, device):
     return policy_loss, value_loss, sum(rewards)
 
 
-# In[21]:
+# In[34]:
 
 
 # ----------------------------
@@ -160,7 +160,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[22]:
+# In[35]:
 
 
 def calculate_advantages(returns, values, normalize = True):
@@ -170,7 +170,7 @@ def calculate_advantages(returns, values, normalize = True):
     return advantages
 
 
-# In[23]:
+# In[36]:
 
 
 def update_policy(advantages, log_prob_actions, returns, values, optimizer): 
@@ -178,7 +178,7 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     # advantages = advantages.detach()
     # returns = returns.detach()
     policy_loss = -(advantages * log_prob_actions).sum()
-    value_loss = F.smooth_l1_loss(returns, values).sum()
+    value_loss = F.smooth_l1_loss(values, returns)
     optimizer.zero_grad()
     if True:
         value_coef = 1
@@ -193,7 +193,7 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     return policy_loss.item(), value_loss.item()
 
 
-# In[24]:
+# In[37]:
 
 
 def evaluate(env, policy):
@@ -216,7 +216,7 @@ def evaluate(env, policy):
     return total_reward
 
 
-# In[25]:
+# In[38]:
 
 
 # ----------------------------
@@ -277,7 +277,7 @@ print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} |
 
 
 
-# In[26]:
+# In[39]:
 
 
 plt.figure(figsize=(12,8))

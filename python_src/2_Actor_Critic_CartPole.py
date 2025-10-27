@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[61]:
+# In[85]:
 
 
 import torch
@@ -16,7 +16,7 @@ import random
 import gymnasium
 
 
-# In[62]:
+# In[86]:
 
 
 # ----------------------------
@@ -36,7 +36,7 @@ def get_device():
     return device
 
 
-# In[63]:
+# In[87]:
 
 
 # ----------------------------
@@ -53,7 +53,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[64]:
+# In[88]:
 
 
 class MLP(nn.Module):
@@ -71,7 +71,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[65]:
+# In[89]:
 
 
 class ActorCritic(nn.Module):
@@ -88,7 +88,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[66]:
+# In[90]:
 
 
 def init_weights(m):
@@ -97,7 +97,7 @@ def init_weights(m):
         m.bias.data.fill_(0)
 
 
-# In[67]:
+# In[91]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -128,7 +128,7 @@ def train_episode(env, policy, optimizer, gamma, device):
     return policy_loss, value_loss, sum(rewards)
 
 
-# In[68]:
+# In[92]:
 
 
 # ----------------------------
@@ -147,22 +147,22 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[69]:
+# In[93]:
 
 
 def update_policy(returns, log_prob_actions, values, optimizer):
     """Compute loss and update policy and value parameters."""    
     # returns = returns.detach()    
     policy_loss = -(returns * log_prob_actions).sum()
-    value_loss = F.smooth_l1_loss(returns, values).sum()
+    value_loss = F.smooth_l1_loss(values, returns)
+    loss = policy_loss + value_loss
     optimizer.zero_grad()
-    policy_loss.backward()
-    value_loss.backward()
+    loss.backward()
     optimizer.step()
     return policy_loss.item(), value_loss.item()
 
 
-# In[70]:
+# In[94]:
 
 
 def evaluate(env, policy, device):
@@ -185,7 +185,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[71]:
+# In[95]:
 
 
 # ----------------------------
@@ -242,7 +242,7 @@ for episode in range(1, MAX_EPISODES+1):
 print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
 
-# In[72]:
+# In[96]:
 
 
 plt.figure(figsize=(12,8))

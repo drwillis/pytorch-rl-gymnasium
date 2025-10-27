@@ -10,7 +10,7 @@
 # https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail/blob/master/a2c_ppo_acktr/algo/a2c_acktr.py
 # https://github.com/higgsfield/RL-Adventure-2
 
-# In[99]:
+# In[210]:
 
 
 import torch
@@ -26,7 +26,7 @@ import ale_py
 import gymnasium as gym
 
 
-# In[100]:
+# In[211]:
 
 
 # ----------------------------
@@ -46,7 +46,7 @@ def get_device():
     return device
 
 
-# In[101]:
+# In[212]:
 
 
 # ----------------------------
@@ -63,7 +63,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[102]:
+# In[213]:
 
 
 class MLP(nn.Module):
@@ -84,7 +84,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[103]:
+# In[214]:
 
 
 class ActorCritic(nn.Module):
@@ -100,7 +100,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[104]:
+# In[215]:
 
 
 def init_weights(m):
@@ -110,7 +110,7 @@ def init_weights(m):
             m.bias.data.zero_()
 
 
-# In[105]:
+# In[216]:
 
 
 def train_episode(env, policy, optimizer, gamma, device):
@@ -138,13 +138,13 @@ def train_episode(env, policy, optimizer, gamma, device):
     values = torch.cat(values)
 
     returns = calculate_returns(rewards, gamma, device, True)
-    advantages = calculate_advantages(returns, values, False)    
+    advantages = calculate_advantages(returns, values, True)    
     policy_loss, value_loss = update_policy(advantages, log_prob_actions, returns, values, optimizer)
 
     return policy_loss, value_loss, sum(rewards)
 
 
-# In[106]:
+# In[217]:
 
 
 # ----------------------------
@@ -163,7 +163,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[107]:
+# In[218]:
 
 
 def calculate_advantages(returns, values, normalize = True):
@@ -173,14 +173,14 @@ def calculate_advantages(returns, values, normalize = True):
     return advantages
 
 
-# In[108]:
+# In[219]:
 
 
 def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     """Compute loss and update policy and value parameters."""    
-    policy_loss = -(advantages * log_prob_actions).sum()    
-    value_loss = F.smooth_l1_loss(returns, values).sum()
-    loss = policy_loss + value_loss;
+    policy_loss = -(advantages * log_prob_actions).mean()    
+    value_loss = F.smooth_l1_loss(values, returns, reduction='mean')
+    loss = policy_loss + 1.5 * value_loss;
     optimizer.zero_grad()
     loss.backward()
     # policy_loss.backward()
@@ -189,7 +189,7 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     return policy_loss.item(), value_loss.item()
 
 
-# In[109]:
+# In[220]:
 
 
 def evaluate(env, policy, device):
@@ -212,7 +212,7 @@ def evaluate(env, policy, device):
     return total_reward
 
 
-# In[110]:
+# In[ ]:
 
 
 train_env = gym.make('LunarLander-v3', render_mode="rgb_array")
@@ -236,7 +236,7 @@ critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
 policy = ActorCritic(actor, critic).to(device)
 policy.apply(init_weights)
 
-LEARNING_RATE = 0.0005
+LEARNING_RATE = 0.01
 optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
 
 MAX_EPISODES = 1500
@@ -268,7 +268,7 @@ for episode in range(1, MAX_EPISODES+1):
 print(f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:7.1f} | Mean Test Rewards: {mean_test_rewards:7.1f} |')
 
 
-# In[111]:
+# In[ ]:
 
 
 plt.figure(figsize=(12,8))

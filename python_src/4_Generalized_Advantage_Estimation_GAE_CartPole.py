@@ -11,7 +11,7 @@
 # https://github.com/Kaixhin/Dist-A3C
 # https://github.com/Kaixhin/Dist-A3C/blob/master/client.py
 
-# In[1]:
+# In[17]:
 
 
 import torch
@@ -25,14 +25,14 @@ import numpy as np
 import gymnasium as gym
 
 
-# In[2]:
+# In[18]:
 
 
 train_env = gym.make('CartPole-v1')
 test_env = gym.make('CartPole-v1')
 
 
-# In[3]:
+# In[19]:
 
 
 # SEED = 1234
@@ -43,7 +43,7 @@ test_env = gym.make('CartPole-v1')
 # torch.manual_seed(SEED);
 
 
-# In[4]:
+# In[20]:
 
 
 class MLP(nn.Module):
@@ -62,7 +62,7 @@ class MLP(nn.Module):
         return x
 
 
-# In[5]:
+# In[21]:
 
 
 class ActorCritic(nn.Module):
@@ -80,7 +80,7 @@ class ActorCritic(nn.Module):
         return action_pred, value_pred
 
 
-# In[6]:
+# In[22]:
 
 
 INPUT_DIM = train_env.observation_space.shape[0]
@@ -93,7 +93,7 @@ critic = MLP(INPUT_DIM, HIDDEN_DIM, 1)
 policy = ActorCritic(actor, critic)
 
 
-# In[7]:
+# In[23]:
 
 
 def init_weights(m):
@@ -102,13 +102,13 @@ def init_weights(m):
         m.bias.data.fill_(0)
 
 
-# In[8]:
+# In[24]:
 
 
 policy.apply(init_weights)
 
 
-# In[9]:
+# In[25]:
 
 
 LEARNING_RATE = 0.01
@@ -116,7 +116,7 @@ LEARNING_RATE = 0.01
 optimizer = optim.Adam(policy.parameters(), lr = LEARNING_RATE)
 
 
-# In[10]:
+# In[26]:
 
 
 def train(env, policy, optimizer, discount_factor, trace_decay):
@@ -165,7 +165,7 @@ def train(env, policy, optimizer, discount_factor, trace_decay):
     return policy_loss, value_loss, episode_reward
 
 
-# In[11]:
+# In[27]:
 
 
 def calculate_returns(rewards, discount_factor, normalize = True):
@@ -186,7 +186,7 @@ def calculate_returns(rewards, discount_factor, normalize = True):
     return returns
 
 
-# In[12]:
+# In[28]:
 
 
 def calculate_advantages(rewards, values, discount_factor, trace_decay, normalize = True):
@@ -209,7 +209,7 @@ def calculate_advantages(rewards, values, discount_factor, trace_decay, normaliz
     return advantages
 
 
-# In[13]:
+# In[29]:
 
 
 def update_policy(advantages, log_prob_actions, returns, values, optimizer):
@@ -217,9 +217,9 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     advantages = advantages.detach()
     returns = returns.detach()
 
-    policy_loss = - (advantages * log_prob_actions).sum()
+    policy_loss = - (advantages * log_prob_actions).mean()
 
-    value_loss = F.smooth_l1_loss(returns, values).sum()
+    value_loss = F.smooth_l1_loss(values, returns, reduction='mean')
 
     optimizer.zero_grad()
 
@@ -231,7 +231,7 @@ def update_policy(advantages, log_prob_actions, returns, values, optimizer):
     return policy_loss.item(), value_loss.item()
 
 
-# In[14]:
+# In[30]:
 
 
 def evaluate(env, policy):
@@ -263,7 +263,7 @@ def evaluate(env, policy):
     return episode_reward
 
 
-# In[ ]:
+# In[31]:
 
 
 MAX_EPISODES = 500
