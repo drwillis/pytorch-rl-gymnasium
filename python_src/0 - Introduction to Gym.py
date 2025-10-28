@@ -261,7 +261,7 @@ print('state shape:', env.observation_space.shape)
 
 
 frame = env.render()
-plt.imshow(frame);
+plt.imshow(frame)
 
 
 # In[22]:

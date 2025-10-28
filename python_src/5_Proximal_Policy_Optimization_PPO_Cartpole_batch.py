@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[25]:
 
 
 #!/usr/bin/env python
@@ -23,7 +23,7 @@ import random
 import gymnasium
 
 
-# In[ ]:
+# In[26]:
 
 
 # ----------------------------
@@ -41,7 +41,7 @@ def get_device():
     return torch.device("cpu")
 
 
-# In[ ]:
+# In[27]:
 
 
 def set_seed(seed):
@@ -54,7 +54,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[ ]:
+# In[28]:
 
 
 # ----------------------------
@@ -86,7 +86,7 @@ class ActorCritic(nn.Module):
         return logits, value
 
 
-# In[ ]:
+# In[29]:
 
 
 # ----------------------------
@@ -105,7 +105,7 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[ ]:
+# In[30]:
 
 
 def collect_episodes(env, policy, n_episodes, device, gamma):
@@ -120,7 +120,7 @@ def collect_episodes(env, policy, n_episodes, device, gamma):
     values = []
     episode_rewards = []
 
-    for _ in range(n_episodes):
+    for episode_idx in range(n_episodes):
         ep_states = []
         ep_actions = []
         ep_log_probs = []
@@ -130,6 +130,8 @@ def collect_episodes(env, policy, n_episodes, device, gamma):
         done = False
         state, _ = env.reset()
         while not done:
+            if episode_idx == 1:
+                env.render()
             s_t = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)  # [1, obs]
             logits, value = policy(s_t)  # logits: [1, A], value: [1,1]
             dist = distributions.Categorical(logits=logits)
@@ -168,7 +170,7 @@ def collect_episodes(env, policy, n_episodes, device, gamma):
     return states_b, actions_b, log_probs_old_b, returns_b, values_b, episode_rewards
 
 
-# In[ ]:
+# In[31]:
 
 
 # ----------------------------
@@ -227,7 +229,7 @@ def ppo_update(policy, optimizer, states, actions, old_log_probs, returns, value
     return total_policy_loss / n_updates, total_value_loss / n_updates, total_entropy / n_updates
 
 
-# In[ ]:
+# In[32]:
 
 
 # ----------------------------
@@ -235,8 +237,13 @@ def ppo_update(policy, optimizer, states, actions, old_log_probs, returns, value
 # ----------------------------
 
 # envs
-train_env = gymnasium.make('CartPole-v1')
-test_env = gymnasium.make('CartPole-v1')
+visualize_test_episodes = False
+
+train_env = gymnasium.make('CartPole-v1', render_mode=None)
+if visualize_test_episodes == True:
+    test_env = gymnasium.make('CartPole-v1', render_mode="human")
+else:
+    test_env = gymnasium.make('CartPole-v1', render_mode=None)
 
 # hyperparams
 SEED = 1234
@@ -304,6 +311,8 @@ for update in range(1, max_updates + 1):
             s, r, term, trunc, _ = test_env.step(action)
             done = term or trunc
             total_reward += r
+            if visualize_test_episodes == True:
+                test_env.render()
         test_rewards_log.append(total_reward)
 
         recent_mean = np.mean(recent_rewards[-100:]) if len(recent_rewards) > 0 else 0.0
@@ -316,7 +325,7 @@ for update in range(1, max_updates + 1):
         break
 
 
-# In[ ]:
+# In[33]:
 
 
 # Plot training & test rewards
