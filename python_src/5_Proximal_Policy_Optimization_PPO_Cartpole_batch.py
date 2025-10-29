@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[25]:
+# In[60]:
 
 
 #!/usr/bin/env python
@@ -23,7 +23,7 @@ import random
 import gymnasium
 
 
-# In[26]:
+# In[61]:
 
 
 # ----------------------------
@@ -41,7 +41,7 @@ def get_device():
     return torch.device("cpu")
 
 
-# In[27]:
+# In[62]:
 
 
 def set_seed(seed):
@@ -54,7 +54,7 @@ def set_seed(seed):
         torch.backends.cudnn.benchmark = False
 
 
-# In[28]:
+# In[63]:
 
 
 # ----------------------------
@@ -86,7 +86,7 @@ class ActorCritic(nn.Module):
         return logits, value
 
 
-# In[29]:
+# In[64]:
 
 
 # ----------------------------
@@ -105,33 +105,22 @@ def calculate_returns(rewards, gamma, device, normalize=True):
     return returns
 
 
-# In[30]:
+# In[65]:
 
 
-def collect_episodes(env, policy, n_episodes, device, gamma):
+def collect_episodes(env, policy, n_episodes, gamma, device):
     """
     Collect n_episodes complete episodes (sequentially) and return concatenated
     tensors for states, actions, old_log_probs, returns, values, and episode rewards.
     """
-    states = []
-    actions = []
-    log_probs_old = []
-    returns_list = []
-    values = []
-    episode_rewards = []
+    states, actions, log_probs_old, returns_list, values, episode_rewards = [], [], [], [], [], []
 
-    for episode_idx in range(n_episodes):
-        ep_states = []
-        ep_actions = []
-        ep_log_probs = []
-        ep_rewards = []
-        ep_values = []
-
+    for _ in range(n_episodes):
+        ep_states, ep_actions, ep_log_probs, ep_rewards, ep_values = [], [], [], [], []
         done = False
         state, _ = env.reset()
+
         while not done:
-            if episode_idx == 1:
-                env.render()
             s_t = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)  # [1, obs]
             logits, value = policy(s_t)  # logits: [1, A], value: [1,1]
             dist = distributions.Categorical(logits=logits)
@@ -146,7 +135,6 @@ def collect_episodes(env, policy, n_episodes, device, gamma):
             ep_log_probs.append(logp.squeeze(0)) # tensor scalar
             ep_rewards.append(reward)
             ep_values.append(value.squeeze(0))   # scalar tensor
-
 
             state = next_state
 
@@ -170,7 +158,7 @@ def collect_episodes(env, policy, n_episodes, device, gamma):
     return states_b, actions_b, log_probs_old_b, returns_b, values_b, episode_rewards
 
 
-# In[31]:
+# In[66]:
 
 
 # ----------------------------
@@ -229,7 +217,7 @@ def ppo_update(policy, optimizer, states, actions, old_log_probs, returns, value
     return total_policy_loss / n_updates, total_value_loss / n_updates, total_entropy / n_updates
 
 
-# In[32]:
+# In[67]:
 
 
 # ----------------------------
@@ -237,13 +225,8 @@ def ppo_update(policy, optimizer, states, actions, old_log_probs, returns, value
 # ----------------------------
 
 # envs
-visualize_test_episodes = False
-
-train_env = gymnasium.make('CartPole-v1', render_mode=None)
-if visualize_test_episodes == True:
-    test_env = gymnasium.make('CartPole-v1', render_mode="human")
-else:
-    test_env = gymnasium.make('CartPole-v1', render_mode=None)
+train_env = gymnasium.make('CartPole-v1')
+test_env = gymnasium.make('CartPole-v1')
 
 # hyperparams
 SEED = 1234
@@ -280,7 +263,7 @@ episodes_seen = 0
 for update in range(1, max_updates + 1):
     # collect rollouts (batch of full episodes)
     states_b, actions_b, old_logp_b, returns_b, values_b, episode_rewards = collect_episodes(
-        train_env, policy, n_episodes=batch_episodes, device=device, gamma=gamma
+        train_env, policy, n_episodes=batch_episodes, gamma=gamma, device=device
     )
     episodes_seen += len(episode_rewards)
     train_rewards_log.extend(episode_rewards)
@@ -311,8 +294,6 @@ for update in range(1, max_updates + 1):
             s, r, term, trunc, _ = test_env.step(action)
             done = term or trunc
             total_reward += r
-            if visualize_test_episodes == True:
-                test_env.render()
         test_rewards_log.append(total_reward)
 
         recent_mean = np.mean(recent_rewards[-100:]) if len(recent_rewards) > 0 else 0.0
@@ -325,7 +306,7 @@ for update in range(1, max_updates + 1):
         break
 
 
-# In[33]:
+# In[68]:
 
 
 # Plot training & test rewards
