@@ -1,14 +1,13 @@
 # PyTorch Reinforcement Learning
 
-This repo contains tutorials covering reinforcement learning using PyTorch 1.3 and Gym 0.15.4 using Python 3.7.
+This repo contains tutorials covering reinforcement learning using PyTorch +2.1 and Gymnasium +0.29.0 using Python 3.12.
 
-**If you find any mistakes or disagree with any of the explanations, please do not hesitate to [submit an issue](https://github.com/bentrevett/pytorch-rl/issues/new). I welcome any feedback, positive or negative!**
 
 ## Getting Started
 
 To install PyTorch, see installation instructions on the [PyTorch website](pytorch.org).
 
-To install Gym, see installation instructions on the [Gym GitHub repo](https://github.com/openai/gym).
+To install Gymnasium, see installation instructions on the [Gym GitHub repo](https://github.com/openai/gym).
 
 ## Tutorials
 
